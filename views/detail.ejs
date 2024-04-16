@@ -1,0 +1,25 @@
+
+    <form action="/contact" method="GET">
+        <button type="submit">Back</button>
+    </form>
+
+    <ul>
+        <li>Name: <%= contact.name %></li>
+        <li>Mobile: <%= contact.mobile %></li>
+        <li>Email: <%= contact.email %></li>
+    </ul>
+
+    <div id="editContact">
+        <% if (invalidMessages && invalidMessages.length > 0) { %>
+            <ul>Invalid input</ul>
+            <% invalidMessages.forEach((message) => { %>
+                <li> <%= message %> </li>
+            <% }); %>
+        <% } %>
+        <form action="/detail/update/<%= contact.name %>" method="POST">
+            Name: <input type="text" name="name" value="<%= input.name %>" required>
+            Mobile: <input type="text" name="mobile" value="<%= input.mobile %>" required>
+            Email: <input type="text" name="email" value="<%= input.email %>">
+            <button type="submit">Edit contact</button>
+        </form>
+    </div>

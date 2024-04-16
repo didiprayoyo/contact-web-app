@@ -1,0 +1,36 @@
+
+    <h1>Contact Page</h1>
+
+    <div id="addContact">
+        <% if (invalidMessages && invalidMessages.length > 0) { %>
+            <ul>Invalid input</ul>
+            <% invalidMessages.forEach((message) => { %>
+                <li> <%= message %> </li>
+            <% }); %>
+        <% } %>
+        <form action="/contact/create" method="POST">
+            Name: <input type="text" name="name" value="<%= input.name %>" required>
+            Mobile: <input type="tel" name="mobile" value="<%= input.mobile %>" required> <!-- pattern="" -->
+            Email: <input type="email" name="email" value="<%= input.email %>">
+            <button type="submit">Add contact</button>
+        </form>
+    </div>
+
+    <div id="listContact">
+        <% contacts.forEach((contact) => { %>
+            <ul>
+                <li>Name: <%= contact.name %></li>
+                <li>Mobile: <%= contact.mobile %></li>
+            </ul>
+            <!-- Button to see details -->
+            <form action="/detail/<%= contact.name %>" method="GET">
+                <!-- <input type="hidden" name="name" value="<%= contact.name %>"> -->
+                <button type="submit">See details</button>
+            </form>
+            <!-- Button to delete -->
+            <form action="/contact/delete" method="POST">
+                <input type="hidden" name="name" value="<%= contact.name %>">
+                <button type="submit">Delete</button>
+            </form>
+        <% }) %>
+    </div>
