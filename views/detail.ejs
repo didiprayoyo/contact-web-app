@@ -10,12 +10,13 @@
     </ul>
 
     <div id="editContact">
-        <% if (invalidMessages && invalidMessages.length > 0) { %>
-            <ul>Invalid input</ul>
-            <% invalidMessages.forEach((message) => { %>
-                <li> <%= message %> </li>
-            <% }); %>
-        <% } %>
+        <ul>Invalid input
+            <% if (invalidMessages && invalidMessages.length > 0) { %>
+                <% invalidMessages.forEach((message) => { %>
+                    <li> <%= message %> </li>
+                <% }); %>
+            <% } %>
+        </ul>
         <form action="/detail/update/<%= contact.name %>" method="POST">
             Name: <input type="text" name="name" value="<%= input.name %>" required>
             Mobile: <input type="text" name="mobile" value="<%= input.mobile %>" required>

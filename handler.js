@@ -2,6 +2,7 @@ const validator = require('validator');
 const fs = require('fs');
 
 const { dataPath } = require('./constVar.js');
+const { pool } = require('./postgres-db.js')
 
 /** 
  * Check 3 inputs: name, mobile, email
@@ -27,47 +28,52 @@ const checkInput = (contacts, name, mobile, email, updateMode=false, oldName='')
     return invalidMessages;
 }
 
-/** Add contact, return true if successfully added
- * Assumed that input in newContacts is valid as specified
- */
-const addContact = (contacts, newContact) => {
-    try {
-        contacts.push(newContact);
-        fs.writeFileSync(dataPath, JSON.stringify(contacts));
-        return true;
-    } catch (err) {
-        return false;
-    }
-}
+// All below are deprecated to-json-handlers
 
-/** Update contact, return true if successfully updated
- * Assumed that input in newContacts is valid
-*/
-const updateContact = (contacts, oldName, newContact) => {
-    const index = contacts.findIndex((contact) => contact.name.toLowerCase() == oldName.toLowerCase());
+// /** Add contact, return true if successfully added
+//  * Assumed that input in newContacts is valid as specified
+//  */
+// const addContact = (contacts, newContact) => {
+//     try {
+//         contacts.push(newContact);
+//         fs.writeFileSync(dataPath, JSON.stringify(contacts));
+//         return true;
+//     } catch (err) {
+//         return false;
+//     }
+// }
 
-    // if the name in contacts exists,then update the contact
-    if (index != 1) {
-        contacts[index] = newContact;
-        fs.writeFileSync(dataPath, JSON.stringify(contacts));
-        return true;
-    } else {
-        return false;
-    }
-}
+// /** Update contact, return true if successfully updated
+//  * Assumed that input in newContacts is valid
+// */
+// const updateContact = (contacts, oldName, newContact) => {
+//     const index = contacts.findIndex((contact) => contact.name.toLowerCase() == oldName.toLowerCase());
 
-// Delete contact, return true if successfully deleted
-const deleteContact = (contacts, name) => {
-    const newContacts = contacts.filter((contact) => contact.name.toLowerCase() != name.toLowerCase());
+//     // if the name in contacts exists,then update the contact
+//     if (index != 1) {
+//         contacts[index] = newContact;
+//         fs.writeFileSync(dataPath, JSON.stringify(contacts));
+//         return true;
+//     } else {
+//         return false;
+//     }
+// }
 
-    // if the name in contacts exists, then delete the contact in db
-    if (newContacts.length != contacts.length) { // newContacts.length == contacts.length - 1
-        contacts = newContacts;
-        fs.writeFileSync(dataPath, JSON.stringify(newContacts));
-        return true;
-    } else {
-        return false;
-    }
-}
+// // Delete contact, return true if successfully deleted
+// const deleteContact = (contacts, name) => {
+//     const newContacts = contacts.filter((contact) => contact.name.toLowerCase() != name.toLowerCase());
 
-module.exports = { checkInput, addContact, updateContact, deleteContact };
+//     // if the name in contacts exists, then delete the contact in db
+//     if (newContacts.length != contacts.length) { // newContacts.length == contacts.length - 1
+//         contacts = newContacts;
+//         fs.writeFileSync(dataPath, JSON.stringify(newContacts));
+//         return true;
+//     } else {
+//         return false;
+//     }
+// }
+// }
+
+// module.exports = { checkInput, addContact, updateContact, deleteContact };
+
+module.exports = { checkInput };

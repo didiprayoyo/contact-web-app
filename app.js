@@ -1,8 +1,11 @@
-const fs = require('fs');
 const express = require('express');
 const expressLayout = require('express-ejs-layouts');
 const morgan = require('morgan');
 const bodyParser = require('body-parser');
+const dotenv = require('dotenv');
+
+// use postgres db
+const { pool } = require('./postgres-db.js');
 
 const app = express();
 
@@ -11,22 +14,15 @@ const {
 } = require('./handler.js');
 
 const {
-    port, appName, author, dirPath, dataPath
+    appName, author, dirPath, dataPath
 } = require('./constVar.js');
+
 let invalidMessages = [];
 
-// check if there is private directory for database contact.json
-if (!fs.existsSync(dirPath)) {
-    fs.mkdirSync(dirPath);
-}
-
-if (!fs.existsSync(dataPath)) {
-    fs.writeFileSync(dataPath, '[]', 'utf8');
-}
-
-// Read json db to access it
-const contactsFile = fs.readFileSync(dataPath, 'utf8');
-const contacts = JSON.parse(contactsFile);
+// load environment variables from .env file
+dotenv.config();
+// to jsonify query (on db) response, by res.json(<query-result>)
+app.use(express.json());    // req.body
 
 app.use(express.static('public'));
 app.use(morgan('dev')); // check & debug logging in development
@@ -55,15 +51,36 @@ app.get('/about', (req, res) => {
 
 // CRUD Contact
 /** TO DO
- * post alert: create, delete, update
- * bootstraping
+ * 1. post alert/react toast: create, delete, update
+ * 2. bootstraping
+ * 
+ * ini mah bodoamat, develop aja baru
+ * 3. sesuaikan variabel name/oldName/prevName
+ * 4. query SELECT * bisa dijadiin loadContacts()
+ * 5. handle try-catch block tiap jenis error: proses async, querying
+ * 6. contact.rows bikin kelewatan/keselip
+ *  
+ * BOOTSTRAPING & REACT TO DOs
+ * estetika:
+ * 2.1. back button
+ * 2.2. detail & edit pakai pop-up card
+ * 2.3. create/add pakai form
+ * 2.4.1 toaster untuk delete/perintah lain yg penting, notif warning (merah, misal perlu ubah password), notif sukses (ijo)
+ * 2.5. query search, debouncing, throatling
+ * 
+ * handle input check masih di front end aja
  */
+
 // Read list => show contact page + error whenever there is invalid input
-app.get('/contact', (req, res) => {
+app.get('/contact', async (req, res) => {
+    // { rows: contacts } = klau mau pakai rows lgsg
+    // load contacts
+    const contacts = await pool.query('SELECT * FROM contacts;');
+    
     res.status(200);
     res.render('contact', {
         title: `Contact Page - ${appName}`,
-        contacts,
+        contacts: contacts.rows,
         invalidMessages,
         input: {
             name: '',
@@ -74,24 +91,34 @@ app.get('/contact', (req, res) => {
 });
 
 // Create a new contact
-app.post('/contact/create', (req, res) => {
+// BERES: rendering ga auto refresh db, ada 2 opsi
+app.post('/contact/create', async (req, res) => {
     const newContact = {
         name: req.body.name,
         mobile: req.body.mobile,
         email: req.body.email,
     }
-
-    invalidMessages = checkInput(contacts, newContact.name, newContact.mobile, newContact.email);
+    // load contacts
+    let contacts = await pool.query('SELECT * FROM contacts;');
+    invalidMessages = checkInput(contacts.rows, ...Object.values(newContact));
     let oldInput = newContact;
     if (invalidMessages.length == 0) {
-        if (addContact(contacts, newContact)) {
+        try {
+            // need function to arrayify an object
+            const newContactArray = Object.values(newContact);
+            await pool.query('INSERT INTO contacts (name, mobile, email) VALUES ($1, $2, $3)', newContactArray);
             oldInput = {
                 name: '',
                 mobile: '',
                 email: '',
             };
+            // opsi 1: load contacts lagi
+            // contacts = await pool.query('SELECT * FROM contacts;');
+            // opsi 2: push newContact object lgsg ke contacts.rows
+            contacts.rows.push(newContact);
             res.status(200);
-        } else {
+        } catch (err) {
+            console.error(err);
             res.status(400); // failed to add contact
         }
     } else {
@@ -101,49 +128,50 @@ app.post('/contact/create', (req, res) => {
     // res.redirect('/contact');
     res.render('contact', {
         title: `Contact Page - ${appName}`,
-        contacts,
+        contacts: contacts.rows,
         invalidMessages,
         input: oldInput,
     });
 });
 
 // Read details
-app.get('/detail/:name', (req, res) => {
+app.get('/detail/:name', async (req, res) => {
     const name = req.params.name;
     // guaranteed that contact is always found
-    const contact = contacts[contacts.findIndex((contact) => contact.name.toLowerCase() === name.toLowerCase())];
-    // const contact = contacts.find((contact) => contact.name.toLowerCase() === name.toLowerCase());
+    const contact = await pool.query('SELECT * FROM contacts WHERE name=$1', [name]);
     
     res.status(200);
     res.render('detail', {
         title: `Detail Page - ${appName}`,
-        contact,
+        contact: contact.rows[0],
         invalidMessages: [],
-        input: contact,
+        input: contact.rows[0],
     });
 });
 
 // Update/Edit
-app.post('/detail/update/:name', (req, res) => {
+app.post('/detail/update/:name', async (req, res) => {
     let oldName = req.params.name;
     // guaranteed that contact is always found
-    const contact = contacts[contacts.findIndex((contact) => contact.name.toLowerCase() === oldName.toLowerCase())];
-    // const contact = contacts.find((contact) => contact.name.toLowerCase() === name.toLowerCase());
+    const contacts = await pool.query('SELECT * FROM contacts');
     const updatedContact = {
         name: req.body.name,
         mobile: req.body.mobile,
         email: req.body.email,
     }
-
-    invalidMessages = checkInput(contacts, updatedContact.name, updatedContact.mobile, updatedContact.email, update=true, oldName=oldName);
+    invalidMessages = checkInput(contacts.rows, ...Object.values(updatedContact), update=true, oldName=oldName);
     if (invalidMessages.length == 0) {
-        if (updateContact(contacts, oldName, updatedContact)) {
+        try {
+            const updatedContactArray = Object.values(updatedContact);
+            await pool.query('UPDATE contacts SET name=$1, mobile=$2, email=$3 WHERE name=$4', [...updatedContactArray, oldName]);
             res.status(200);
             res.redirect('/contact');
-        } else {
+        } catch (err) {
+            console.log(err);
             res.status(404); // contact not found, failed to update contact
         }
     } else {
+        const contact = await pool.query('SELECT * FROM contacts WHERE name=$1', [oldName]);
         res.status(400); // due to invalid input
         res.render('detail', {
             title: `Detail Page - ${appName}`,
@@ -155,12 +183,14 @@ app.post('/detail/update/:name', (req, res) => {
 });
 
 // Delete
-app.post('/contact/delete', (req, res) => {
+app.post('/contact/delete', async (req, res) => {
     const nameToDelete = req.body.name;
 
-    if (deleteContact(contacts, nameToDelete)) {
+    try {
+        await pool.query('DELETE FROM contacts WHERE name=$1', [nameToDelete]);
         res.status(200);
-    } else { // in case of contact not found
+    } catch (err) {
+        console.log(err);
         res.status(404);
     }
     
@@ -175,6 +205,7 @@ app.use('/', (req, res) => {
     })
 });
 
+const port = process.env.PORT || 3000;
 app.listen(port, () => {
     console.log(`Server is listening on port ${port}`);
 });
